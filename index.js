@@ -21,7 +21,7 @@ class QRedisClient extends redis.RedisClient {
     }
 
     setexAsync(...args) {
-        return promisify(this.setex).bind(this, ...args);
+        return promisify(this.setex).bind(this)(...args);
     }
 
     setAsync(key, value, timeout) {
