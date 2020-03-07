@@ -26,6 +26,7 @@ class QRedisClient extends redis.RedisClient {
 
     setAsync(key, value, timeout) {
         if (typeof value === 'object') value = JSON.stringify(value);
+        if (value === null || value === undefined) value = '';
 
         if (isNaN(timeout)) {
             return promisify(this.set).bind(this)(key, value);
