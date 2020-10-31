@@ -26,14 +26,6 @@ class QRedisClient extends redis.RedisClient {
         return promisify(this.setex).bind(this)(...args);
     }
 
-    getsetAsync(...args) {
-        return promisify(this.getset).bind(this)(...args);
-    }
-
-    delAsync(...args) {
-        return promisify(this.del).bind(this)(...args);
-    }
-
     setAsync(key, value, timeout) {
         if (typeof value === 'object') value = JSON.stringify(value);
         if (value === null || value === undefined) value = '';
@@ -43,6 +35,24 @@ class QRedisClient extends redis.RedisClient {
         }
 
         return this.setexAsync(key, timeout, value);
+    }
+
+    expireAsync(...args) {
+        return promisify(this.expire).bind(this)(...args);
+    }
+
+    async getsetAsync(key, value, timeout) {
+        const result = await promisify(this.getset).bind(this)(key, value);
+
+        if (!isNaN(timeout)) {
+            await this.expireAsync(key, timeout);
+        }
+
+        return result;
+    }
+
+    delAsync(...args) {
+        return promisify(this.del).bind(this)(...args);
     }
 
     async runGet(keyInfo, parameters, fnExecuteGet, options = {}) {
@@ -130,3 +140,5 @@ module.exports.TIMER = {
     // hours
     h: (value) => 60 * 60 * value,
 };
+
+module.exports.QRedisClient = QRedisClient;
