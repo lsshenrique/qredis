@@ -3,10 +3,11 @@
 const redis = require('redis');
 const { createClient } = redis;
 const { promisify } = require("util");
+const { countScan, delScan } = require("./utils");
 
 class QRedisClient extends redis.RedisClient {
     constructor(client, options) {
-        super();
+        super(options);
         this._client = client;
         this._options = options || {};
 
@@ -108,7 +109,24 @@ class QRedisClient extends redis.RedisClient {
             asObject: true,
         });
     }
+
+    count(pattern, callback) {
+        countScan(this, '0', pattern, 0, callback);
+    }
+
+    countAsync(pattern) {
+        return promisify(this.count).bind(this)(pattern);
+    }
+
+    delByPattern(pattern, callback) {
+        delScan(this, '0', pattern, 0, callback);
+    }
+
+    delByPatternAsync(pattern) {
+        return promisify(this.delByPattern).bind(this)(pattern);
+    }
 }
+
 
 module.exports = redis;
 
