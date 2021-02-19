@@ -125,6 +125,12 @@ class QRedisClient extends redis.RedisClient {
     delByPatternAsync(pattern) {
         return promisify(this.delByPattern).bind(this)(pattern);
     }
+
+    static convert(client, props) {
+        Reflect.setPrototypeOf(client, QRedisClient.prototype);
+
+        return props ? Object.assign(client, props) : client;
+    }
 }
 
 
@@ -138,14 +144,15 @@ module.exports.createClient = function(options, ...args) {
     const dateFormated = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
 
     // eslint-disable-next-line no-console
-    client.on("ready", () => console.info(`[REDIS] conected on ${optionsAux.host}:${optionsAux.port} at ${dateFormated}`));
+    client.on("ready", () => console.info(`[REDIS] conected on ${client.address} at ${dateFormated}`));
 
     // eslint-disable-next-line no-console
     client.on("error", (error) => console.error('[REDIS]', error));
 
-    return new QRedisClient(client, {
-        ...optionsAux,
-    });
+    client._options = optionsAux || {};
+    if (client._options.enableCacheOnRunGet !== false) client._options.enableCacheOnRunGet = true;
+
+    return QRedisClient.convert(client);
 };
 
 module.exports.TIMER = {
