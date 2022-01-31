@@ -1,6 +1,6 @@
 {
     "name": "@qualitech/qredis",
-    "version": "0.3.1",
+    "version": "0.4.0",
     "description": "",
     "main": "index.js",
     "scripts": {
@@ -13,6 +13,6 @@
     "author": "Henrique L S Silva",
     "license": "Apache-2.0",
     "dependencies": {
-        "redis": "^3.0.2"
+        "redis": "3.1.2"
     }
 }
