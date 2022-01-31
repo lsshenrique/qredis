@@ -1,5 +1,5 @@
 {
-    "name": "@qualitech/qredis2",
+    "name": "@qualitech/qredis",
     "version": "0.4.0",
     "description": "",
     "main": "index.js",
