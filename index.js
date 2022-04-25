@@ -125,6 +125,38 @@ class QRedisClient extends redis.RedisClient {
     delByPatternAsync(pattern) {
         return promisify(this.delByPattern).bind(this)(pattern);
     }
+
+    ttlAsync(...args) {
+        return promisify(this.ttl).bind(this)(...args);
+    }
+
+    saddAsync(...args) {
+        return promisify(this.sadd).bind(this)(...args);
+    }
+
+    smembersAsync(...args) {
+        return promisify(this.smembers).bind(this)(...args);
+    }
+
+    sremAsync(...args) {
+        return promisify(this.srem).bind(this)(...args);
+    }
+
+    hsetAsync(...args) {
+        return promisify(this.hset).bind(this)(...args);
+    }
+
+    hgetAsync(...args) {
+        return promisify(this.hget).bind(this)(...args);
+    }
+
+    hdelAsync(...args) {
+        return promisify(this.hdel).bind(this)(...args);
+    }
+
+    hkeysAsync(...args) {
+        return promisify(this.hkeys).bind(this)(...args);
+    }
 }
 
 
