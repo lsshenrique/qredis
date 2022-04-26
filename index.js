@@ -4,6 +4,7 @@ const redis = require('redis');
 const { createClient } = redis;
 const { promisify } = require("util");
 const { countScan, delScan } = require("./utils");
+const crypto = require('crypto');
 
 class QRedisClient extends redis.RedisClient {
     constructor(client, options) {
@@ -126,36 +127,116 @@ class QRedisClient extends redis.RedisClient {
         return promisify(this.delByPattern).bind(this)(pattern);
     }
 
-    ttlAsync(...args) {
-        return promisify(this.ttl).bind(this)(...args);
+    ttl(...args) {
+        return promisify(this._client.ttl).bind(this._client)(...args);
     }
 
-    saddAsync(...args) {
-        return promisify(this.sadd).bind(this)(...args);
+    sadd(...args) {
+        return promisify(this._client.sadd).bind(this._client)(...args);
     }
 
-    smembersAsync(...args) {
-        return promisify(this.smembers).bind(this)(...args);
+    smembers(...args) {
+        return promisify(this._client.smembers).bind(this._client)(...args);
     }
 
-    sremAsync(...args) {
-        return promisify(this.srem).bind(this)(...args);
+    srem(...args) {
+        return promisify(this._client.srem).bind(this._client)(...args);
     }
 
-    hsetAsync(...args) {
-        return promisify(this.hset).bind(this)(...args);
+    hset(...args) {
+        return promisify(this._client.hset).bind(this._client)(...args);
     }
 
-    hgetAsync(...args) {
-        return promisify(this.hget).bind(this)(...args);
+    hget(...args) {
+        return promisify(this._client.hget).bind(this._client)(...args);
     }
 
-    hdelAsync(...args) {
-        return promisify(this.hdel).bind(this)(...args);
+    hdel(...args) {
+        return promisify(this._client.hdel).bind(this._client)(...args);
     }
 
-    hkeysAsync(...args) {
-        return promisify(this.hkeys).bind(this)(...args);
+    hkeys(...args) {
+        return promisify(this._client.hkeys).bind(this._client)(...args);
+    }
+
+    eval(...args) {
+        return promisify(this._client.eval).bind(this._client)(...args);
+    }
+
+    sendCommand(...args) {
+        return promisify(this._client.sendCommand).bind(this._client)(...args);
+    }
+
+    // https://github.com/coligo-org/simple-redis-mutex
+    async mutexLock({ key, timeoutMillis, failAfterMillis, retryTimeMillis }) {
+
+        // eslint-disable-next-line consistent-this
+        const client = this;
+        const lockValue = crypto.randomBytes(50).toString('hex');
+
+        const acquireLock = new Promise((resolve, reject) => {
+            let failTimeoutId = null;
+            let attemptTimeoutId = null;
+
+            // Try to acquire the lock, and try again after a while on failure
+            function attempt() {
+                let clientSetPromise;
+
+                if (timeoutMillis !== null) {
+                    clientSetPromise = client.sendCommand("SET", [key, lockValue, 'NX', 'PX', timeoutMillis]);
+                } else {
+                    clientSetPromise = client.sendCommand("SET", [key, lockValue, 'NX']);
+                }
+
+                // Try to set the lock if it does not exist, else try again later, also set a timeout for the lock so it expires
+                clientSetPromise.then(response => {
+                    if (response === 'OK') {
+                        // Clear failure timer if it was set
+                        if (failTimeoutId !== null) { clearTimeout(failTimeoutId); }
+                        resolve();
+                    } else {
+                        attemptTimeoutId = setTimeout(attempt, retryTimeMillis);
+                    }
+                });
+            }
+
+            // Set time out to fail acquiring the lock if it's sent
+            if (failAfterMillis !== null) {
+                failTimeoutId = setTimeout(
+                    () => {
+                        if (attemptTimeoutId !== null) { clearTimeout(attemptTimeoutId); }
+                        reject(new Error(`Lock could not be acquire for ${failAfterMillis} millis`));
+                    },
+                    failAfterMillis,
+                );
+            }
+
+            attempt();
+        });
+
+        function releaseLock() {
+            /*
+             * Release the lock only if it has the same lockValue as acquireLock sets it.
+             * This will prevent the release of an already released lock.
+             *
+             * Script source: https://redis.io/commands/set#patterns - Redis official docs
+             */
+            const luaReleaseScript = `
+                if redis.call("get", KEYS[1]) == ARGV[1]
+                then
+                    return redis.call("del", KEYS[1])
+                else
+                    return 0
+                end
+            `;
+
+            // After calling the script, make sure to return void promise.
+            return client.eval(luaReleaseScript, 1, key, lockValue).then(() => {});
+        }
+
+        await acquireLock;
+
+        return releaseLock;
     }
 }
 
